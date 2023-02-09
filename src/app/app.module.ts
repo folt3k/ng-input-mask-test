@@ -3,10 +3,12 @@ import { BrowserModule } from '@angular/platform-browser';
 
 import { AppComponent } from './app.component';
 import {ReactiveFormsModule} from "@angular/forms";
+import { InputMaskDirective } from './input-mask.directive';
 
 @NgModule({
   declarations: [
-    AppComponent
+    AppComponent,
+    InputMaskDirective
   ],
   imports: [
     BrowserModule,
