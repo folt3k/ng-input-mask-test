@@ -1,4 +1,5 @@
-import { Directive, ElementRef, HostListener, Input } from '@angular/core';
+import { Directive, HostListener, Input } from '@angular/core';
+import { NgControl } from '@angular/forms';
 
 @Directive({
   selector: '[inputMask]',
@@ -6,33 +7,38 @@ import { Directive, ElementRef, HostListener, Input } from '@angular/core';
 export class InputMaskDirective {
   @Input() inputMask: string = '';
 
-  constructor(private inputElementRef: ElementRef) {}
+  constructor(private control: NgControl) {
+    setTimeout(() => {
+      this.control.valueAccessor?.registerOnChange(() => {});
+    });
+  }
 
-  @HostListener('input', ['$event.target.value'])
-  onInputChange(value: string) {
+  @HostListener('input', ['$event'])
+  onInputChange(event: InputEvent) {
     let maskedInputValue = '';
     const splitMaskArr = this.inputMask.split('');
 
-    value.split('').forEach((char, index) => {
-      if (splitMaskArr[index] === undefined) {
-        return;
-      }
-      if (splitMaskArr[index] === '0') {
-        const isCharMatch = !!char.match('[a-z0-9]');
-
-        if (isCharMatch) {
-          maskedInputValue = `${maskedInputValue}${char}`;
+    (event.target as HTMLInputElement).value
+      .split('')
+      .forEach((char, index) => {
+        if (splitMaskArr[index] === undefined) {
+          return;
         }
-      } else {
-        if (splitMaskArr[index] === char) {
-          maskedInputValue = `${maskedInputValue}${char}`;
+        if (splitMaskArr[index] === '0') {
+          const isCharMatch = !!char.match('[0-9]');
+
+          if (isCharMatch) {
+            maskedInputValue = `${maskedInputValue}${char}`;
+          }
         } else {
-          maskedInputValue = `${maskedInputValue}${splitMaskArr[index]}${char}`;
+          if (splitMaskArr[index] === char) {
+            maskedInputValue = `${maskedInputValue}${char}`;
+          } else {
+            maskedInputValue = `${maskedInputValue}${splitMaskArr[index]}${char}`;
+          }
         }
-      }
-    });
+      });
 
-    console.log(maskedInputValue);
-    this.inputElementRef.nativeElement.value = maskedInputValue;
+    this.control.control?.setValue(maskedInputValue);
   }
 }
