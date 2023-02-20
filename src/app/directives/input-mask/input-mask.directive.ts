@@ -1,11 +1,27 @@
 import { Directive, HostListener, Input } from '@angular/core';
 import { NgControl } from '@angular/forms';
 
+interface InputMaskRule {
+  key: string;
+  isValid: (char: string) => boolean;
+}
+
 @Directive({
   selector: '[inputMask]',
 })
 export class InputMaskDirective {
   @Input() inputMask: string = '';
+
+  private readonly rules: InputMaskRule[] = [
+    {
+      key: '0',
+      isValid: (char: string) => !!char.match('[0-9]'),
+    },
+    {
+      key: 'A',
+      isValid: (char: string) => !!char.match('[a-zA-Z]'),
+    },
+  ];
 
   constructor(private control: NgControl) {
     setTimeout(() => {
@@ -15,8 +31,16 @@ export class InputMaskDirective {
 
   @HostListener('input', ['$event'])
   onInputChange(event: InputEvent) {
+    const inputMaskValue = this.createInputMaskValue(
+      (event.target as HTMLInputElement).value
+    );
+
+    this.control.control?.setValue(inputMaskValue);
+  }
+
+  private createInputMaskValue(inputValue: string): string {
     const splitMaskArr = this.inputMask.split('');
-    const splitValueArr = (event.target as HTMLInputElement).value.split('');
+    const splitValueArr = inputValue.split('');
 
     for (let index = 0; index < splitMaskArr.length; index++) {
       const char = splitMaskArr[index];
@@ -25,10 +49,11 @@ export class InputMaskDirective {
         continue;
       }
 
-      if (char === '0') {
-        const isCharMatch = !!splitValueArr[index].match('[0-9]');
+      if (this.isCharMatchingToAnyRule(char)) {
+        const rule = this.rules.find((rule) => rule.key === char)!;
+        const isCharValid = rule.isValid(splitValueArr[index]);
 
-        if (!isCharMatch) {
+        if (!isCharValid) {
           let matched = false;
 
           for (
@@ -40,9 +65,9 @@ export class InputMaskDirective {
               continue;
             }
 
-            const isCharMatch = !!splitValueArr[missingIndex].match('[0-9]');
+            const isCharValid = rule.isValid(splitValueArr[missingIndex]);
 
-            if (isCharMatch) {
+            if (isCharValid) {
               splitValueArr.splice(index, 0, splitValueArr[missingIndex]);
               splitValueArr.splice(index, missingIndex + 1 - index);
               matched = true;
@@ -54,16 +79,15 @@ export class InputMaskDirective {
             splitValueArr.splice(index, splitValueArr.length - index);
           }
         }
-      } else {
-        if (splitValueArr[index] === char) {
-        } else {
-          splitValueArr.splice(index, 0, char);
-        }
+      } else if (splitValueArr[index] !== char) {
+        splitValueArr.splice(index, 0, char);
       }
     }
 
-    const finalSplitValueArr = splitValueArr.splice(0, splitMaskArr.length);
+    return splitValueArr.splice(0, splitMaskArr.length).join('');
+  }
 
-    this.control.control?.setValue(finalSplitValueArr.join(''));
+  private isCharMatchingToAnyRule(char: string): boolean {
+    return !!this.rules.find((rule) => rule.key.includes(char));
   }
 }
