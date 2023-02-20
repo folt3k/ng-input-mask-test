@@ -18,27 +18,51 @@ export class InputMaskDirective {
     const splitMaskArr = this.inputMask.split('');
     const splitValueArr = (event.target as HTMLInputElement).value.split('');
 
-    splitMaskArr.forEach((char, index) => {
+    for (let index = 0; index < splitMaskArr.length; index++) {
+      const char = splitMaskArr[index];
+
       if (splitValueArr[index] === undefined) {
-        return;
+        continue;
       }
+
       if (char === '0') {
         const isCharMatch = !!splitValueArr[index].match('[0-9]');
 
         if (!isCharMatch) {
-          splitValueArr.splice(index, 1);
+          let matched = false;
+
+          for (
+            let missingIndex = index;
+            missingIndex < splitValueArr.length;
+            missingIndex++
+          ) {
+            if (splitValueArr[missingIndex] === undefined) {
+              continue;
+            }
+
+            const isCharMatch = !!splitValueArr[missingIndex].match('[0-9]');
+
+            if (isCharMatch) {
+              splitValueArr.splice(index, 0, splitValueArr[missingIndex]);
+              splitValueArr.splice(index, missingIndex + 1 - index);
+              matched = true;
+              break;
+            }
+          }
+
+          if (!matched) {
+            splitValueArr.splice(index, splitValueArr.length - index);
+          }
         }
       } else {
         if (splitValueArr[index] === char) {
         } else {
           splitValueArr.splice(index, 0, char);
-          splitValueArr.splice(index + 1, 0, splitValueArr[index]);
         }
       }
-    });
+    }
 
     const finalSplitValueArr = splitValueArr.splice(0, splitMaskArr.length);
-    console.log(finalSplitValueArr);
 
     this.control.control?.setValue(finalSplitValueArr.join(''));
   }
