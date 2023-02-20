@@ -1,6 +1,8 @@
 import { Directive, HostListener, Input } from '@angular/core';
 import { NgControl } from '@angular/forms';
 
+type InputMaskType = 'thousands';
+
 interface InputMaskRule {
   key: string;
   isValid: (char: string) => boolean;
@@ -10,7 +12,7 @@ interface InputMaskRule {
   selector: '[inputMask]',
 })
 export class InputMaskDirective {
-  @Input() inputMask: string = '';
+  @Input() inputMask: string | InputMaskType = '';
 
   private readonly rules: InputMaskRule[] = [
     {
@@ -39,18 +41,18 @@ export class InputMaskDirective {
   }
 
   private createInputMaskValue(inputValue: string): string {
-    const splitMaskArr = this.inputMask.split('');
+    const loopArr = this.getLoopArr(inputValue);
     const splitValueArr = inputValue.split('');
 
-    for (let index = 0; index < splitMaskArr.length; index++) {
-      const char = splitMaskArr[index];
+    for (let index = 0; index < loopArr.length; index++) {
+      const char = loopArr[index];
 
       if (splitValueArr[index] === undefined) {
         continue;
       }
 
       if (this.isCharMatchingToAnyRule(char)) {
-        const rule = this.rules.find((rule) => rule.key === char)!;
+        const rule = this.getRule(char);
         const isCharValid = rule.isValid(splitValueArr[index]);
 
         if (!isCharValid) {
@@ -84,10 +86,43 @@ export class InputMaskDirective {
       }
     }
 
-    return splitValueArr.splice(0, splitMaskArr.length).join('');
+    const cutSplitValueArr = splitValueArr.splice(0, loopArr.length);
+
+    return this.getFinalValue(cutSplitValueArr);
+  }
+
+  private getLoopArr(inputValue: string): string[] {
+    if (this.inputMask === 'thousands') {
+      return inputValue.split('');
+    }
+
+    return this.inputMask.split('');
   }
 
   private isCharMatchingToAnyRule(char: string): boolean {
+    if (this.inputMask === 'thousands') {
+      return true;
+    }
+
     return !!this.rules.find((rule) => rule.key.includes(char));
+  }
+
+  private getRule(char: string): InputMaskRule {
+    if (this.inputMask === 'thousands') {
+      return this.rules.find((rule) => rule.key === '0')!;
+    }
+
+    return this.rules.find((rule) => rule.key === char)!;
+  }
+
+  private getFinalValue(arr: string[]): string {
+    if (this.inputMask === 'thousands') {
+      return arr
+        .join('')
+        .split(/(?=(?:...)*$)/)
+        .join(' ');
+    }
+
+    return arr.join('');
   }
 }
