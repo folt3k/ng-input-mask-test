@@ -1,29 +1,15 @@
 import { Directive, HostListener, Input } from '@angular/core';
 import { NgControl } from '@angular/forms';
 
-type InputMaskType = 'thousands';
-
-interface InputMaskRule {
-  key: string;
-  isValid: (char: string) => boolean;
-}
+import { InputMaskStrategy, InputMaskType } from './input-mask.types';
+import { ThousandsMask } from './masks/thousands-mask';
+import { BaseMask } from './masks/base-mask';
 
 @Directive({
   selector: '[inputMask]',
 })
 export class InputMaskDirective {
   @Input() inputMask: string | InputMaskType = '';
-
-  private readonly rules: InputMaskRule[] = [
-    {
-      key: '0',
-      isValid: (char: string) => !!char.match('[0-9]'),
-    },
-    {
-      key: 'A',
-      isValid: (char: string) => !!char.match('[a-zA-Z]'),
-    },
-  ];
 
   constructor(private control: NgControl) {
     setTimeout(() => {
@@ -41,7 +27,8 @@ export class InputMaskDirective {
   }
 
   private createInputMaskValue(inputValue: string): string {
-    const loopArr = this.getLoopArr(inputValue);
+    const maskStrategy = this.maskStrategyFactory();
+    const loopArr = maskStrategy.getLoopArr(inputValue);
     const splitValueArr = inputValue.split('');
 
     for (let index = 0; index < loopArr.length; index++) {
@@ -51,9 +38,9 @@ export class InputMaskDirective {
         continue;
       }
 
-      if (this.isCharMatchingToAnyRule(char)) {
-        const rule = this.getRule(char);
-        const isCharValid = rule.isValid(splitValueArr[index]);
+      if (maskStrategy.isCharMatchingToAnyRule(char)) {
+        const isCharValidFn = maskStrategy.getCharValidationFn(char);
+        const isCharValid = isCharValidFn(splitValueArr[index]);
 
         if (!isCharValid) {
           let matched = false;
@@ -67,7 +54,7 @@ export class InputMaskDirective {
               continue;
             }
 
-            const isCharValid = rule.isValid(splitValueArr[missingIndex]);
+            const isCharValid = isCharValidFn(splitValueArr[missingIndex]);
 
             if (isCharValid) {
               splitValueArr.splice(index, 0, splitValueArr[missingIndex]);
@@ -88,41 +75,15 @@ export class InputMaskDirective {
 
     const cutSplitValueArr = splitValueArr.splice(0, loopArr.length);
 
-    return this.getFinalValue(cutSplitValueArr);
+    return maskStrategy.getFinalValue(cutSplitValueArr);
   }
 
-  private getLoopArr(inputValue: string): string[] {
-    if (this.inputMask === 'thousands') {
-      return inputValue.split('');
+  private maskStrategyFactory(): InputMaskStrategy {
+    switch (this.inputMask) {
+      case 'thousands':
+        return new ThousandsMask(this.inputMask);
+      default:
+        return new BaseMask(this.inputMask);
     }
-
-    return this.inputMask.split('');
-  }
-
-  private isCharMatchingToAnyRule(char: string): boolean {
-    if (this.inputMask === 'thousands') {
-      return true;
-    }
-
-    return !!this.rules.find((rule) => rule.key.includes(char));
-  }
-
-  private getRule(char: string): InputMaskRule {
-    if (this.inputMask === 'thousands') {
-      return this.rules.find((rule) => rule.key === '0')!;
-    }
-
-    return this.rules.find((rule) => rule.key === char)!;
-  }
-
-  private getFinalValue(arr: string[]): string {
-    if (this.inputMask === 'thousands') {
-      return arr
-        .join('')
-        .split(/(?=(?:...)*$)/)
-        .join(' ');
-    }
-
-    return arr.join('');
   }
 }
